@@ -51,36 +51,88 @@ class sync_agent extends \core\task\scheduled_task
 
         lsr_log("Iniciando enturmação...", 'info');
 
-//        if (!lsr_check_online()) {
-//            lsr_log("Servidor não acessível. Encerrando enturmação\n", 'info');
-//            return;
-//        }
+        if (!lsr_check_online()) {
+            lsr_log("Servidor não acessível. Encerrando enturmação", 'info');
+            return;
+        }
 
+
+        $json_courses = lsr_get_courses();
         $json_users = lsr_get_users();
-        foreach ($json_users['results'] as $user) {
-            switch ($user['action']) {
+        $json_enrolls = lsr_get_enrolls();
+
+        $count = 0;
+
+        lsr_log("Iniciando processamento de " .count($json_courses). " cursos", 'info');
+        foreach ($json_courses as $course) {
+            switch ($course['acao']) {
+                case 'incluir':
+                    lsr_create_course_roles($course);
+                    $count++;
+                break;
+                case 'editar':
+                    lsr_update_course($course);
+                    $count++;
+                break;
+                case 'desativar':
+                    lsr_delete_course($course);
+                    $count++;
+                break;
+                case 'ativar':
+                    lsr_activate_course($course);
+                    $count++;
+                break;
+                default:
+                    lsr_log("Ação '{$course['acao']}' para CURSO não encontrada", 'error');
+            }
+        }
+        lsr_log("$count registros foram processados", 'info');
+
+        $count = 0;
+
+        lsr_log("Iniciando processamento de ". count($json_users) . " alunos", 'info');
+        foreach ($json_users as $user) {
+            switch ($user['acao']) {
+                case 'incluir':
+                    lsr_create_user_roles($user);
+                    $count++;
+                break;
                 case 'insert':
                     lsr_create_user_roles($user);
+                    $count++;
                 break;
-                case 'update':
+                case 'editar':
+                    lsr_update_user($user);
+                    $count++;
                 break;
-                case 'delete':
+                case 'ativar':
+                    lsr_activate_user($user);
+                    $count++;
                 break;
+                case 'desativar':
+                    lsr_deactivate_user($user);
+                    $count++;
+                break;
+                default:
+                    lsr_log("Ação '{$user['acao']}' para ALUNO não encontrada", 'error');
             }
         }
+        lsr_log("$count registros foram processados", 'info');
 
-        $json_enrols = lsr_get_enrolls();
-        foreach ($json_enrols['results'] as $enrol) {
-            switch ($enrol['action']) {
-                case 'insert':
+        $count = 0;
+
+        lsr_log("Iniciando processamento de ". count($json_enrolls) . " matriculas", 'info');
+        foreach ($json_enrolls as $enrol) {
+            switch ($enrol['acao']) {
+                case 'incluir':
                     lsr_create_enrol_roles($enrol);
-                    break;
-                case 'update':
-                    break;
-                case 'delete':
-                    break;
+                    $count++;
+                break;
+                default:
+                    lsr_log("Ação '{$enrol['acao']}' para MATRICULA não encontrada", 'error');
             }
         }
+        lsr_log("$count registros foram processadas", 'info');
 
         lsr_log("Fim da enturmação...\n", 'info');
     }
